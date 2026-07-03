@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0D0C0A">
+<title>Teatro · Pre-Show Safety</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D0C0A; --card:#171510; --card2:#1E1B14; --line:#2A2620;
+  --gold:#C9A227; --gold-dim:#8A7120; --text:#EDE9DE; --muted:#9B968A;
+  --pass:#3DA65C; --fail:#D4453A; --na:#6B675E;
+  --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  overscroll-behavior-y:contain;}
+.disp{font-family:'Oswald',-apple-system,sans-serif; letter-spacing:.06em; text-transform:uppercase;}
+
+/* ---------- header ---------- */
+header{position:sticky; top:0; z-index:20; background:linear-gradient(180deg,#0D0C0A 82%,rgba(13,12,10,0));
+  padding:14px 14px 10px;}
+.brand{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px;}
+.brand h1{margin:0; font-size:20px; color:var(--gold); font-weight:600;}
+.brand .sub{font-size:11px; color:var(--muted); letter-spacing:.14em;}
+.meta{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px;}
+.meta-row{display:flex; gap:10px; align-items:center;}
+.meta-row + .meta-row{margin-top:8px;}
+.meta label{font-size:10px; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:2px;}
+.meta input{width:100%; background:var(--card2); border:1px solid var(--line); border-radius:8px;
+  color:var(--text); font-size:15px; padding:8px 10px; font-weight:600;}
+.meta input:focus{outline:2px solid var(--gold-dim); border-color:var(--gold);}
+.meta .grow{flex:1; min-width:0;}
+#dateField{max-width:130px;} 
+.progress-wrap{margin-top:10px; display:flex; align-items:center; gap:10px;}
+.pbar{flex:1; height:6px; background:var(--card2); border-radius:3px; overflow:hidden;}
+.pbar i{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--gold-dim),var(--gold)); transition:width .3s;}
+#pctLabel{font-size:12px; color:var(--gold); font-weight:700; min-width:38px; text-align:right;}
+
+/* ---------- sections ---------- */
+main{padding:4px 12px 110px;}
+section.blk{margin-bottom:14px; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--card);}
+.sec-head{display:flex; align-items:center; gap:10px; width:100%; padding:14px 14px;
+  background:var(--card2); border:none; color:var(--text); text-align:left; cursor:pointer;}
+.sec-head .num{font-size:11px; color:var(--gold); border:1px solid var(--gold-dim); border-radius:6px;
+  padding:2px 7px; font-weight:600;}
+.sec-head h2{margin:0; font-size:15px; flex:1; font-weight:600;}
+.sec-badge{font-size:11px; color:var(--muted); font-weight:600;}
+.sec-badge.done{color:var(--pass);}
+.sec-badge.warn{color:var(--fail);}
+.chev{color:var(--muted); transition:transform .2s; font-size:12px;}
+section.open .chev{transform:rotate(90deg);}
+.sec-body{display:none; padding:6px 12px 12px;}
+section.open .sec-body{display:block;}
+
+/* ---------- lines ---------- */
+.ln{padding:12px 0 10px; border-bottom:1px solid var(--line);}
+.ln:last-of-type{border-bottom:none;}
+.ln-top{display:flex; align-items:baseline; gap:8px;}
+.ln-label{flex:1; font-size:14.5px; font-weight:600;}
+.ln-loc{color:var(--muted); font-weight:400; font-size:13px;}
+.ln-time{font-size:11px; color:var(--gold); font-variant-numeric:tabular-nums; min-width:44px; text-align:right;}
+.ln-time.empty{color:#4A463D;}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:9px;}
+.chip{min-height:46px; min-width:64px; padding:6px 12px; border-radius:11px;
+  border:1.5px solid var(--line); background:var(--card2); color:var(--muted);
+  font-size:13px; font-weight:600; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:1px; cursor:pointer; user-select:none; -webkit-user-select:none; transition:all .12s;}
+.chip .st{font-size:15px; line-height:1;}
+.chip[data-s="1"]{border-color:var(--pass); background:rgba(61,166,92,.14); color:#7BD69A;}
+.chip[data-s="2"]{border-color:var(--fail); background:rgba(212,69,58,.16); color:#F08A81;}
+.chip[data-s="3"]{border-color:var(--na); background:rgba(107,103,94,.18); color:#B0AB9F;}
+.chip:active{transform:scale(.95);}
+/* choice chips (aircon / override) */
+.chip.choice[data-on="1"]{border-color:var(--gold); background:rgba(201,162,39,.16); color:var(--gold);}
+.ln.failed{border-left:3px solid var(--fail); padding-left:9px; margin-left:-12px; padding-right:0;}
+.ln.complete .ln-label{color:var(--text);}
+.hint{font-size:11px; color:var(--muted); margin-top:6px;}
+
+/* comments */
+.cmt{margin-top:12px;}
+.cmt textarea{width:100%; min-height:52px; background:var(--card2); border:1px solid var(--line);
+  border-radius:10px; color:var(--text); font-size:14px; padding:9px 11px; resize:vertical; font-family:inherit;}
+.cmt textarea:focus{outline:2px solid var(--gold-dim);}
+.cmt label{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px;}
+
+/* ---------- footer bar ---------- */
+.footbar{position:fixed; bottom:0; left:0; right:0; z-index:30;
+  background:rgba(13,12,10,.96); backdrop-filter:blur(8px); border-top:1px solid var(--line);
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:10px;}
+.btn{flex:1; min-height:52px; border-radius:13px; border:none; font-size:15px; font-weight:700; cursor:pointer;}
+.btn-gold{background:linear-gradient(180deg,#D8B335,#B8921F); color:#141208;}
+.btn-ghost{flex:0 0 auto; width:52px; background:var(--card2); border:1px solid var(--line); color:var(--muted); font-size:18px;}
+.btn:active{transform:scale(.97);}
+.toast{position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:var(--gold); color:#141208;
+  padding:10px 18px; border-radius:10px; font-weight:700; font-size:14px; z-index:50; opacity:0; pointer-events:none; transition:opacity .25s;}
+.toast.show{opacity:1;}
+
+/* reset dialog */
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:40; display:none; align-items:center; justify-content:center; padding:24px;}
+.overlay.show{display:flex;}
+.dlg{background:var(--card); border:1px solid var(--gold-dim); border-radius:16px; padding:20px; max-width:340px; width:100%;}
+.dlg h3{margin:0 0 8px; color:var(--gold); font-size:17px;}
+.dlg p{margin:0 0 16px; font-size:14px; color:var(--muted);}
+.dlg .row{display:flex; gap:10px;}
+.dlg button{flex:1; min-height:46px; border-radius:11px; font-weight:700; font-size:14px; cursor:pointer;}
+.dlg .yes{background:var(--fail); border:none; color:#fff;}
+.dlg .no{background:var(--card2); border:1px solid var(--line); color:var(--text);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1 class="disp">Teatro</h1>
+    <span class="sub disp">Pre-Show Safety Checks</span>
+  </div>
+  <div class="meta">
+    <div class="meta-row">
+      <div class="grow"><label>Production</label><input id="showField" placeholder="Show name" autocomplete="off"></div>
+    </div>
+    <div class="meta-row">
+      <div class="grow"><label>Checked by</label><input id="byField" autocomplete="off"></div>
+      <div><label>Date</label><input id="dateField" type="date"></div>
+    </div>
+    <div class="progress-wrap"><div class="pbar"><i id="pFill"></i></div><span id="pctLabel">0%</span></div>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<div class="footbar">
+  <button class="btn btn-ghost" id="resetBtn" title="New show day">↺</button>
+  <button class="btn btn-gold" id="exportBtn">Export to Excel</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="resetOv">
+  <div class="dlg">
+    <h3 class="disp">New show day?</h3>
+    <p>This clears all ticks, times and comments. The production name is kept. Export first if you haven't saved today's check.</p>
+    <div class="row"><button class="no" id="rNo">Cancel</button><button class="yes" id="rYes">Clear checks</button></div>
+  </div>
+</div>
+
+<script>
+/* ============ CHECKLIST DEFINITION (from Teatro Pre Show Check) ============ */
+const SUB_FE = ["Extinguisher 1","Extinguisher 2","Fire Hose","Hose Nozzle"];
+const SECTIONS = [
+{ id:"stage", title:"Pre-Show · Stage", lines:[
+  { id:"st1", label:"Fire Alarms at Security Desk", type:"choice", options:["Override ON","Not Used"] },
+  { id:"st2", label:"Fire Exits", loc:"SM Desk · Stage Left", sub:["Checked"] },
+  { id:"st3", label:"Access to Fire Equipment", loc:"SM Desk · Stage Left", sub:["Checked"] },
+  { id:"st4", label:"Fire Equipment", loc:"SM Desk · Stage Left", sub:[...SUB_FE,"Valve & Seal"] },
+  { id:"st5", label:"Big Fire Hose", loc:"SM Desk · Stage Left", sub:["Hose not Used","Big Fire Hose","Branch"] },
+  { id:"st6", label:"Fire Exits", loc:"Stage Right", sub:["Checked"] },
+  { id:"st7", label:"Access to Fire Equipment", loc:"Stage Right", sub:["Checked"] },
+  { id:"st8", label:"Fire Equipment", loc:"Stage Right", sub:[...SUB_FE,"Deluge System"] },
+]},
+{ id:"audL", title:"Pre-Show · Auditorium Lower", lines:[
+  { id:"al1", label:"Fire Exits at Doors", sub:["Door 1","Door 2","Door 3","Door 4","Door 5","Door 6"] },
+  { id:"al2", label:"Fire Equipment at Doors", sub:["Door 5 · Extinguisher","Door 6 · Extinguisher"] },
+  { id:"al3", label:"Aisle Lights", sub:["House Left","House Right"] },
+  { id:"al4", label:"House Lights", sub:["Lights ON","Dimmers Reset"] },
+  { id:"al5", label:"Air Conditioning", type:"choice", options:["Cold","Cool","Good","Bit Warm","Warm","Hot"] },
+]},
+{ id:"audU", title:"Pre-Show · Auditorium Upper", lines:[
+  { id:"au1", label:"Door 7", sub:[...SUB_FE,"Fire Exit"] },
+  { id:"au2", label:"Door 8", sub:[...SUB_FE,"Fire Exit"] },
+  { id:"au3", label:"Door 9", sub:["Extinguisher 1","Fire Exit"] },
+  { id:"au4", label:"Door 10", sub:["Extinguisher 1","Fire Exit"] },
+  { id:"au5", label:"Aisle Lights", sub:["House Left","House Right"] },
+]},
+{ id:"boxes", title:"Pre-Show · Portofino & Bologna Boxes", lines:[
+  { id:"bx1", label:"Portofino Box", loc:"Foyer · Balcony", sub:["Extinguisher 1","Fire Hose","Hose Nozzle"] },
+  { id:"bx2", label:"Bologna Box", loc:"Foyer · Balcony", sub:["Extinguisher 1","Fire Hose","Hose Nozzle"] },
+]},
+{ id:"foyers", title:"Pre-Show · Foyers", lines:[
+  { id:"fy1", label:"Upper Foyer", loc:"West Side", sub:[...SUB_FE,"Valve & Seal"] },
+  { id:"fy2", label:"Middle Foyer", loc:"West Side", sub:[...SUB_FE,"Valve & Seal"] },
+  { id:"fy3", label:"Lower Foyer", loc:"Ramp by Door 2", sub:SUB_FE },
+  { id:"fy4", label:"Lower Foyer", loc:"By FOH Office", sub:[...SUB_FE,"Valve & Seal"] },
+  { id:"fy5", label:"Lower Foyer", loc:"By Merch Office", sub:SUB_FE },
+  { id:"fy6", label:"Lower Foyer", loc:"Ramp by Door 3", sub:[...SUB_FE,"Valve & Seal"] },
+  { id:"fy7", label:"Fire Exit", loc:"By FOH Manager's Office", sub:["Fire Exit","Toilet Passage · Piazza Door"] },
+  { id:"fy8", label:"Smokers Balcony Doors", sub:["Door 3","Door 4","Door 5","Door 6"] },
+  { id:"fy9", label:"Paramedic on Duty", sub:["Confirmed"] },
+]},
+{ id:"after", title:"After Show", lines:[
+  { id:"as1", label:"Auditorium Clear", sub:["Aud Clear","Work Lights ON","House Lights OFF"] },
+  { id:"as2", label:"Foyer Lights OFF", sub:["Checked"] },
+  { id:"as3", label:"Main Doors Closed", sub:["Door 1","Door 2","Toilet Passage · Piazza Door"] },
+  { id:"as4", label:"Smokers Balcony Doors", sub:["Door 3","Door 4","Door 5","Door 6"] },
+  { id:"as5", label:"All Doors / Exits Closed", sub:["Checked"] },
+  { id:"as6", label:"Fire Alarms ON at Security Desk", sub:["Confirmed"] },
+]},
+];
+
+/* ============ STATE ============ */
+const KEY="teatroPreShowV1";
+const STATES=["", "1","2","3"]; // blank, tick, cross, na
+const GLYPH={ "1":"✓", "2":"✗", "3":"N/A" };
+let S = load();
+function blank(){ return { show:"", by:"Dale Lindner", date:todayISO(), marks:{}, choices:{}, times:{}, comments:{}, notes:"" }; }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(KEY)); return d? Object.assign(blank(),d): blank(); }catch(e){ return blank(); } }
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+
+/* ============ RENDER ============ */
+const app=document.getElementById("app");
+function build(){
+  app.innerHTML="";
+  SECTIONS.forEach((sec,si)=>{
+    const el=document.createElement("section");
+    el.className="blk"+(si===0?" open":"");
+    el.id="sec_"+sec.id;
+    let body="";
+    sec.lines.forEach(ln=>{
+      body+=`<div class="ln" id="ln_${ln.id}">
+        <div class="ln-top">
+          <div class="ln-label">${ln.label}${ln.loc?` <span class="ln-loc">· ${ln.loc}</span>`:""}</div>
+          <div class="ln-time empty" id="t_${ln.id}">—</div>
+        </div>
+        <div class="chips">`;
+      if(ln.type==="choice"){
+        ln.options.forEach(op=>{
+          body+=`<button class="chip choice" data-ln="${ln.id}" data-op="${op}" data-on="0"><span class="st">${op}</span></button>`;
+        });
+      } else {
+        ln.sub.forEach((sb,i)=>{
+          body+=`<button class="chip" data-ln="${ln.id}" data-i="${i}" data-s=""><span class="st"></span><span>${sb}</span></button>`;
+        });
+      }
+      body+=`</div></div>`;
+    });
+    body+=`<div class="cmt"><label>Section comments</label><textarea data-sec="${sec.id}" placeholder="Any issues or remarks…">${S.comments[sec.id]||""}</textarea></div>`;
+    el.innerHTML=`<button class="sec-head">
+        <span class="num disp">${String(si+1).padStart(2,"0")}</span>
+        <h2>${sec.title}</h2>
+        <span class="sec-badge" id="b_${sec.id}"></span>
+        <span class="chev">▶</span>
+      </button>
+      <div class="sec-body">${body}</div>`;
+    app.appendChild(el);
+  });
+  // notes
+  const nt=document.createElement("section");
+  nt.className="blk open";
+  nt.innerHTML=`<div class="sec-body" style="display:block;padding-top:12px">
+    <div class="cmt"><label>General notes</label><textarea id="notesField" placeholder="Overall notes for the day…">${S.notes||""}</textarea></div>
+    <p class="hint">Tap a chip to cycle: ✓ pass → ✗ fail → N/A → blank. The time stamps automatically when a line is fully checked.</p>
+  </div>`;
+  app.appendChild(nt);
+  restore();
+  bind();
+  refresh();
+}
+
+function restore(){
+  document.getElementById("showField").value=S.show||"";
+  document.getElementById("byField").value=S.by||"";
+  document.getElementById("dateField").value=S.date||todayISO();
+  // chips
+  document.querySelectorAll(".chip:not(.choice)").forEach(ch=>{
+    const st=(S.marks[ch.dataset.ln]||{})[ch.dataset.i]||"";
+    setChip(ch,st,false);
+  });
+  document.querySelectorAll(".chip.choice").forEach(ch=>{
+    ch.dataset.on = (S.choices[ch.dataset.ln]===ch.dataset.op)?"1":"0";
+  });
+}
+
+function setChip(ch, st, anim){
+  ch.dataset.s=st;
+  ch.querySelector(".st").textContent=GLYPH[st]||"";
+}
+
+/* ============ INTERACTION ============ */
+function bind(){
+  document.querySelectorAll(".sec-head").forEach(h=>{
+    h.addEventListener("click",()=>h.parentElement.classList.toggle("open"));
+  });
+  document.querySelectorAll(".chip:not(.choice)").forEach(ch=>{
+    ch.addEventListener("click",()=>{
+      const cur=ch.dataset.s||"";
+      const next=STATES[(STATES.indexOf(cur)+1)%STATES.length];
+      setChip(ch,next);
+      S.marks[ch.dataset.ln]=S.marks[ch.dataset.ln]||{};
+      S.marks[ch.dataset.ln][ch.dataset.i]=next;
+      stamp(ch.dataset.ln);
+      save(); refresh();
+    });
+  });
+  document.querySelectorAll(".chip.choice").forEach(ch=>{
+    ch.addEventListener("click",()=>{
+      const ln=ch.dataset.ln;
+      const already = S.choices[ln]===ch.dataset.op;
+      S.choices[ln]= already? "": ch.dataset.op;
+      document.querySelectorAll(`.chip.choice[data-ln="${ln}"]`).forEach(c=>{
+        c.dataset.on=(S.choices[ln]===c.dataset.op)?"1":"0";
+      });
+      stamp(ln);
+      save(); refresh();
+    });
+  });
+  document.querySelectorAll(".cmt textarea[data-sec]").forEach(t=>{
+    t.addEventListener("input",()=>{ S.comments[t.dataset.sec]=t.value; save(); });
+  });
+  document.getElementById("notesField").addEventListener("input",e=>{ S.notes=e.target.value; save(); });
+  document.getElementById("showField").addEventListener("input",e=>{ S.show=e.target.value; save(); });
+  document.getElementById("byField").addEventListener("input",e=>{ S.by=e.target.value; save(); });
+  document.getElementById("dateField").addEventListener("input",e=>{ S.date=e.target.value; save(); });
+  document.getElementById("exportBtn").addEventListener("click",exportXlsx);
+  document.getElementById("resetBtn").addEventListener("click",()=>document.getElementById("resetOv").classList.add("show"));
+  document.getElementById("rNo").addEventListener("click",()=>document.getElementById("resetOv").classList.remove("show"));
+  document.getElementById("rYes").addEventListener("click",()=>{
+    const show=S.show, by=S.by;
+    S=blank(); S.show=show; S.by=by;
+    save();
+    document.getElementById("resetOv").classList.remove("show");
+    build();
+    toast("Cleared — ready for today");
+  });
+}
+
+function lineDef(id){ for(const s of SECTIONS){ for(const l of s.lines){ if(l.id===id) return l; } } }
+function lineComplete(ln){
+  if(ln.type==="choice") return !!S.choices[ln.id];
+  const m=S.marks[ln.id]||{};
+  return ln.sub.every((_,i)=>m[i]);
+}
+function lineFailed(ln){
+  if(ln.type==="choice") return false;
+  const m=S.marks[ln.id]||{};
+  return ln.sub.some((_,i)=>m[i]==="2");
+}
+function stamp(id){
+  const ln=lineDef(id);
+  if(lineComplete(ln)) S.times[id]=nowHM();
+  else delete S.times[id];
+}
+
+function refresh(){
+  let total=0, done=0, anyFail=false;
+  SECTIONS.forEach(sec=>{
+    let sTotal=0,sDone=0,sFail=false;
+    sec.lines.forEach(ln=>{
+      total++; sTotal++;
+      const c=lineComplete(ln), f=lineFailed(ln);
+      if(c){ done++; sDone++; }
+      if(f){ sFail=true; anyFail=true; }
+      const el=document.getElementById("ln_"+ln.id);
+      el.classList.toggle("complete",c);
+      el.classList.toggle("failed",f);
+      const t=document.getElementById("t_"+ln.id);
+      t.textContent=S.times[ln.id]||"—";
+      t.classList.toggle("empty",!S.times[ln.id]);
+    });
+    const b=document.getElementById("b_"+sec.id);
+    b.textContent = sDone+" / "+sTotal;
+    b.className="sec-badge"+(sFail?" warn":(sDone===sTotal?" done":""));
+  });
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById("pFill").style.width=pct+"%";
+  document.getElementById("pctLabel").textContent=pct+"%";
+}
+
+/* ============ EXPORT ============ */
+function exportXlsx(){
+  if(typeof XLSX==="undefined"){ toast("No connection — Excel library not loaded"); return; }
+  const d=new Date(S.date+"T12:00:00");
+  const dayName=d.toLocaleDateString("en-ZA",{weekday:"long"});
+  const rows=[];
+  rows.push(["TEATRO SAFETY CHECKS — PRE-SHOW"]);
+  rows.push([]);
+  rows.push(["Production:", S.show||"—", "", "Day:", dayName, "Date:", S.date]);
+  rows.push(["Checked by:", S.by||"—"]);
+  rows.push([]);
+  // failed summary
+  const fails=[];
+  SECTIONS.forEach(sec=>sec.lines.forEach(ln=>{
+    if(ln.type!=="choice"){
+      const m=S.marks[ln.id]||{};
+      ln.sub.forEach((sb,i)=>{ if(m[i]==="2") fails.push(sec.title+" — "+ln.label+(ln.loc?" ("+ln.loc+")":"")+" — "+sb); });
+    }
+  }));
+  if(fails.length){
+    rows.push(["⚠ FAILED ITEMS ("+fails.length+")"]);
+    fails.forEach(f=>rows.push(["", f]));
+    rows.push([]);
+  }
+  rows.push(["Section","Item","Location","Results","Status","Time"]);
+  SECTIONS.forEach(sec=>{
+    sec.lines.forEach((ln,idx)=>{
+      let results, status;
+      if(ln.type==="choice"){
+        results=S.choices[ln.id]||"—";
+        status=S.choices[ln.id]?"DONE":"—";
+      } else {
+        const m=S.marks[ln.id]||{};
+        results=ln.sub.map((sb,i)=>sb+": "+(GLYPH[m[i]]||"—")).join("   ");
+        status = lineFailed(ln) ? "FAIL" : (lineComplete(ln) ? "PASS" : "INCOMPLETE");
+      }
+      rows.push([idx===0?sec.title:"", ln.label, ln.loc||"", results, status, S.times[ln.id]||""]);
+    });
+    if(S.comments[sec.id]) rows.push(["","Comments:","",S.comments[sec.id]]);
+    rows.push([]);
+  });
+  rows.push(["General notes:", S.notes||"—"]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:32},{wch:34},{wch:24},{wch:70},{wch:12},{wch:8}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Pre-Show Check");
+  const fname="Teatro_PreShow_"+S.date+(S.show?"_"+S.show.replace(/[^\w]+/g,"_"):"")+".xlsx";
+  XLSX.writeFile(wb,fname);
+  toast("Exported ✓");
+}
+
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+build();
+</script>
+</body>
+</html>
