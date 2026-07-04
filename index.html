@@ -94,6 +94,7 @@ section.open .sec-body{display:block;}
   padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:10px;}
 .btn{flex:1; min-height:52px; border-radius:13px; border:none; font-size:15px; font-weight:700; cursor:pointer;}
 .btn-gold{background:linear-gradient(180deg,#D8B335,#B8921F); color:#141208;}
+.btn-dark{background:var(--card2); border:1px solid var(--gold-dim); color:var(--gold);}
 .btn-ghost{flex:0 0 auto; width:52px; background:var(--card2); border:1px solid var(--line); color:var(--muted); font-size:18px;}
 .btn:active{transform:scale(.97);}
 .toast{position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:var(--gold); color:#141208;
@@ -135,7 +136,8 @@ section.open .sec-body{display:block;}
 
 <div class="footbar">
   <button class="btn btn-ghost" id="resetBtn" title="New show day">↺</button>
-  <button class="btn btn-gold" id="exportBtn">Export to Excel</button>
+  <button class="btn btn-gold" id="shareBtn">Share ⤴</button>
+  <button class="btn btn-dark" id="exportBtn">Save file</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -317,6 +319,7 @@ function bind(){
   document.getElementById("byField").addEventListener("input",e=>{ S.by=e.target.value; save(); });
   document.getElementById("dateField").addEventListener("input",e=>{ S.date=e.target.value; save(); });
   document.getElementById("exportBtn").addEventListener("click",exportXlsx);
+  document.getElementById("shareBtn").addEventListener("click",shareXlsx);
   document.getElementById("resetBtn").addEventListener("click",()=>document.getElementById("resetOv").classList.add("show"));
   document.getElementById("rNo").addEventListener("click",()=>document.getElementById("resetOv").classList.remove("show"));
   document.getElementById("rYes").addEventListener("click",()=>{
@@ -372,8 +375,7 @@ function refresh(){
 }
 
 /* ============ EXPORT ============ */
-function exportXlsx(){
-  if(typeof XLSX==="undefined"){ toast("No connection — Excel library not loaded"); return; }
+function buildWorkbook(){
   const d=new Date(S.date+"T12:00:00");
   const dayName=d.toLocaleDateString("en-ZA",{weekday:"long"});
   const rows=[];
@@ -418,8 +420,36 @@ function exportXlsx(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Pre-Show Check");
   const fname="Teatro_PreShow_"+S.date+(S.show?"_"+S.show.replace(/[^\w]+/g,"_"):"")+".xlsx";
+  return {wb,fname};
+}
+
+function exportXlsx(){
+  if(typeof XLSX==="undefined"){ toast("No connection — Excel library not loaded"); return; }
+  const {wb,fname}=buildWorkbook();
   XLSX.writeFile(wb,fname);
-  toast("Exported ✓");
+  toast("Saved ✓");
+}
+
+async function shareXlsx(){
+  if(typeof XLSX==="undefined"){ toast("No connection — Excel library not loaded"); return; }
+  const {wb,fname}=buildWorkbook();
+  const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  const file=new File([out],fname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({
+        files:[file],
+        title:"Teatro Pre-Show Safety Check",
+        text:"Pre-show safety check — "+(S.show||"Teatro")+" — "+S.date
+      });
+      toast("Shared ✓");
+    }catch(err){
+      if(err.name!=="AbortError") toast("Share failed — saved instead"), XLSX.writeFile(wb,fname);
+    }
+  } else {
+    XLSX.writeFile(wb,fname);
+    toast("Sharing not supported — file saved");
+  }
 }
 
 function toast(msg){
