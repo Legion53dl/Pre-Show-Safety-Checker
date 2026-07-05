@@ -136,7 +136,7 @@ section.open .sec-body{display:block;}
 
 <div class="footbar">
   <button class="btn btn-ghost" id="resetBtn" title="New show day">↺</button>
-  <button class="btn btn-gold" id="shareBtn">Share ⤴</button>
+  <button class="btn btn-gold" id="shareBtn">Share (CSV) ⤴</button>
   <button class="btn btn-dark" id="exportBtn">Save file</button>
 </div>
 
@@ -437,35 +437,25 @@ async function shareXlsx(){
     return;
   }
   const {wb,fname}=buildWorkbook();
-  const meta={ title:"Teatro Pre-Show Safety Check",
-               text:"Pre-show safety check — "+(S.show||"Teatro")+" — "+S.date };
-
-  // Attempt 1: real .xlsx
-  const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
-  const xfile=new File([out],fname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  if(navigator.canShare && navigator.canShare({files:[xfile]})){
-    try{
-      await navigator.share({files:[xfile],...meta});
-      toast("Shared ✓"); return;
-    }catch(err){
-      if(err.name==="AbortError") return; // user closed the share sheet — not an error
-      // fall through to CSV attempt
-    }
-  }
-
-  // Attempt 2: CSV (Android's share layer accepts text/csv; opens in Excel)
+  // Android Chrome's share sheet only accepts whitelisted file types (.csv yes, .xlsx no),
+  // and a failed share consumes the tap gesture — so go straight to CSV in one gesture.
+  const csv=XLSX.utils.sheet_to_csv(wb.Sheets["Pre-Show Check"]);
+  const cfile=new File(["\uFEFF"+csv],fname.replace(/\.xlsx$/,".csv"),{type:"text/csv"});
   try{
-    const csv=XLSX.utils.sheet_to_csv(wb.Sheets["Pre-Show Check"]);
-    const cfile=new File(["\uFEFF"+csv],fname.replace(/\.xlsx$/,".csv"),{type:"text/csv"});
-    if(navigator.canShare && navigator.canShare({files:[cfile]})){
-      await navigator.share({files:[cfile],...meta});
-      toast("Shared as CSV ✓"); return;
+    if(navigator.canShare && !navigator.canShare({files:[cfile]})){
+      toast("This phone can't share files — use Save, then attach");
+      return;
     }
+    await navigator.share({
+      files:[cfile],
+      title:"Teatro Pre-Show Safety Check",
+      text:"Pre-show safety check — "+(S.show||"Teatro")+" — "+S.date
+    });
+    toast("Shared ✓");
   }catch(err){
-    if(err.name==="AbortError") return;
+    if(err.name==="AbortError") return; // user closed the share sheet
+    toast("Share blocked ("+err.name+") — use Save, then attach");
   }
-
-  toast("Phone blocked file sharing — use Save, then attach");
 }
 
 function toast(msg){
